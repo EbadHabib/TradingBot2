@@ -1,0 +1,51 @@
+import MetaTrader5 as mt5
+
+# Connect to MetaTrader 5
+if not mt5.initialize():
+    print("Failed to initialize MetaTrader 5")
+    quit()
+
+# Define the input parameters
+symbol = "Boom 1000 Index"  # Replace with your desired symbol
+spike_threshold = 2  # Minimum price change to consider as a spike (modify as needed)
+lot_size = 0.8
+stop_loss_pips = 20  # Stop loss in pips
+take_profit_pips = 40  # Take profit in pips
+
+# Get the current bid and ask prices
+symbol_info = mt5.symbol_info(symbol)
+if not symbol_info.visible:
+    print(f"Symbol {symbol} is not visible in Market Watch")
+    mt5.shutdown()
+    quit()
+
+current_bid = symbol_info.bid
+current_ask = symbol_info.ask
+
+# Calculate the price change since the last tick
+price_change = abs(current_bid - mt5.symbol_info_tick(symbol).prev_bid)
+
+# Check if the price change exceeds the spike threshold
+if price_change >= spike_threshold:
+    # If it's a spike, open a sell position
+    request = mt5.OrderSend()
+    request.action = mt5.ORDER_SELL
+    request.symbol = symbol
+    request.volume = lot_size
+    request.price = current_bid
+    request.slippage = 3  # Adjust slippage as needed
+
+    # Set stop loss and take profit levels
+    request.stop_loss = current_ask + stop_loss_pips * symbol_info.point
+    request.take_profit = current_ask - take_profit_pips * symbol_info.point
+
+    result = mt5.order_send(request)
+    if result.retcode == mt5.TRADE_RETCODE_DONE:
+        print(f"Sell order opened at price: {current_bid}")
+        print(f"Stop Loss set at: {request.stop_loss}")
+        print(f"Take Profit set at: {request.take_profit}")
+    else:
+        print(f"Error opening sell order: {result.retcode}")
+
+# Shutdown MetaTrader 5 connection
+mt5.shutdown()
